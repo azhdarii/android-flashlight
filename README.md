@@ -1,9 +1,21 @@
 android simple flashlight app using kotlin jetpack compose.
+
+
 features:
+
+
 -flashlight
+
+
 -flasher
+
+
 -splash screen with color picker
+
+
 -supporting tapsell ads
+
+
 
 
 
