@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,45 +62,48 @@ fun ColorChooserScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ScreenHeader(title = stringResource(R.string.color_chooser), onBack = onBack)
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ScreenHeader(title = stringResource(R.string.color_chooser), onBack = onBack)
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-        PresetColors.chunked(4).forEach { row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                row.forEach { (color, labelRes) ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(color, CircleShape)
-                                .border(
-                                    width = 2.dp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                                    shape = CircleShape,
-                                )
-                                .clickable { onColorSelected(color.toArgbInt()) },
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(labelRes),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            PresetColors.chunked(4).forEach { row ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    row.forEach { (color, labelRes) ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(color, CircleShape)
+                                    .border(
+                                        width = 2.dp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                                        shape = CircleShape,
+                                    )
+                                    .clickable { onColorSelected(color.toArgbInt()) },
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = stringResource(labelRes),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -124,47 +126,50 @@ fun ColorPickerScreen(
     val controller = rememberColorPickerController()
     var selectedColor by remember { mutableStateOf(Color.White) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ScreenHeader(title = stringResource(R.string.color_picker), onBack = onBack)
-
-        Spacer(Modifier.height(24.dp))
-
-        Box(
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { innerPadding ->
+        Column(
             modifier = Modifier
-                .size(260.dp)
-                .background(selectedColor, CircleShape)
-                .border(
-                    width = 2.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                    shape = CircleShape,
-                ),
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        HsvColorPicker(
-            modifier = Modifier.size(280.dp),
-            controller = controller,
-            onColorChanged = { envelope: ColorEnvelope ->
-                selectedColor = envelope.color
-            },
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        Button(
-            onClick = { onColorSelected(selectedColor.toArgbInt()) },
-            modifier = Modifier.fillMaxWidth(),
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(stringResource(R.string.select_color))
+            ScreenHeader(title = stringResource(R.string.color_picker), onBack = onBack)
+
+            Spacer(Modifier.height(24.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .background(selectedColor, CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                        shape = CircleShape,
+                    ),
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            HsvColorPicker(
+                modifier = Modifier.size(280.dp),
+                controller = controller,
+                onColorChanged = { envelope: ColorEnvelope ->
+                    selectedColor = envelope.color
+                },
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = { onColorSelected(selectedColor.toArgbInt()) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.select_color))
+            }
         }
     }
 }
@@ -182,11 +187,13 @@ fun SolidColorScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color(color))
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+            .padding(24.dp),
         contentAlignment = Alignment.Center,
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.TopStart),
+        ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.back),
