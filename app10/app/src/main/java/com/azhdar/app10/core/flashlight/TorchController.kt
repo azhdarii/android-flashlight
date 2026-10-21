@@ -4,7 +4,6 @@ import android.content.Context
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
-import android.os.Build
 import android.util.Log
 import com.azhdar.app10.core.service.TorchService
 import kotlinx.coroutines.CoroutineScope
@@ -78,7 +77,6 @@ class TorchController(context: Context) : TorchDriver {
      * Returns `null` when the device has no flash at all.
      */
     private fun findFlashCameraId(): String? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
         return try {
             cameraManager.cameraIdList.firstOrNull { id ->
                 val characteristics = cameraManager.getCameraCharacteristics(id)
@@ -93,7 +91,6 @@ class TorchController(context: Context) : TorchDriver {
     /** Registers the torch callback so external state changes are observed. */
     fun attach() {
         if (torchCallback != null) return
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         flashCameraId = flashCameraId ?: findFlashCameraId() ?: return
         try {
             cameraManager.registerTorchCallback(callback, null)
@@ -107,7 +104,6 @@ class TorchController(context: Context) : TorchDriver {
     fun detach() {
         val registered = torchCallback ?: return
         torchCallback = null
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         try {
             cameraManager.unregisterTorchCallback(registered)
         } catch (e: CameraAccessException) {
@@ -122,9 +118,6 @@ class TorchController(context: Context) : TorchDriver {
      *   otherwise. The published state is only updated on success.
      */
     override fun setTorch(enabled: Boolean): Result<Unit> {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return Result.failure(UnsupportedOperationException("Torch requires API 23+"))
-        }
         val id = flashCameraId ?: findFlashCameraId()?.also { flashCameraId = it }
         if (id == null) {
             return Result.failure(IllegalStateException("No flash unit available on this device"))

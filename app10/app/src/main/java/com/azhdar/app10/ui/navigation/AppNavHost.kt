@@ -34,8 +34,8 @@ import com.azhdar.app10.ui.screens.SolidColorScreen
 fun AppNavHost(
     viewModel: FlashlightViewModel,
     adsManager: AdsManager,
-    navController: NavHostController = rememberNavController(),
     modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController(),
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }

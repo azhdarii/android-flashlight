@@ -1,5 +1,6 @@
 package com.azhdar.app10.core.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -148,6 +150,15 @@ class TorchService : Service() {
     }
 
     private fun updateNotification(isOn: Boolean) {
+        // The notification is posted directly, so the POST_NOTIFICATIONS permission has to
+        // be checked explicitly. On Android 13+ the user can deny it, and the foreground
+        // service still runs, it just shows no notification.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         val manager = NotificationManagerCompat.from(this)
         if (!manager.areNotificationsEnabled()) return
         runCatching {
