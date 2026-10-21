@@ -37,4 +37,11 @@
     <string name="preset_magenta">Magenta</string>
     <string name="preset_cyan">Cyan</string>
     <string name="preset_black">Black</string>
+    <!-- Torch service notification -->
+    <string name="notification_channel_name">Torch</string>
+    <string name="notification_channel_description">Shown while the torch is switched on.</string>
+    <string name="notification_torch_title">Torch is on</string>
+    <string name="notification_torch_title_off">Torch is off</string>
+    <string name="notification_torch_text">Tap to switch the torch off.</string>
+    <string name="notification_turn_off">Turn off</string>
 </resources>

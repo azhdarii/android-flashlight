@@ -25,43 +25,48 @@ import ir.tapsell.plus.model.TapsellPlusErrorModel
  *  - The banner is rendered into a [ViewGroup] that the UI layer owns. The previous
  *    implementation called `activity.findViewById(R.id.standardBanner)` on a view that was
  *    inflated inside a Compose `AndroidView`, so the lookup always returned `null`.
- *  - Ad requests are issued from [onRequest] and are guarded against a destroyed activity.
+ *  - Requests issued before the SDK finished initialising are queued and replayed, because
+ *    the banner view exists long before the SDK is ready.
  */
 class AdsManager(private val context: Context) {
 
-    private var initialized = false
-    private var bannerResponseId: String? = null
-    private var interstitialResponseId: String? = null
-    private var rewardedResponseId: String? = null
+    private val appKey = BuildConfig.TAPSELL_APP_KEY
+    private val bannerZone = BuildConfig.TAPSELL_BANNER_ZONE
+    private val interstitialZone = BuildConfig.TAPSELL_INTERSTITIAL_ZONE
+    private val rewardedZone = BuildConfig.TAPSELL_REWARDED_ZONE
+
+    /** True when the SDK can be used at all. */
+    private val enabled: Boolean = appKey.isNotBlank()
 
     /** True when at least one ad zone has been configured for this build. */
     val hasAds: Boolean
         get() = bannerZone.isNotBlank() || interstitialZone.isNotBlank() || rewardedZone.isNotBlank()
 
     /**
-     * True once the SDK finished initialising. When ads are not configured at all the
-     * manager reports ready immediately, so callers never wait for something that will
-     * never happen.
+     * True once the SDK finished initialising, or immediately when ads are disabled, so
+     * callers never wait for something that will never happen.
      */
     val isReady: Boolean
-        get() = initialized || !hasAds
+        get() = initialized || !enabled
 
-    private val bannerZone = BuildConfig.TAPSELL_BANNER_ZONE
-    private val interstitialZone = BuildConfig.TAPSELL_INTERSTITIAL_ZONE
-    private val rewardedZone = BuildConfig.TAPSELL_REWARDED_ZONE
+    private var initialized = false
+    private var bannerResponseId: String? = null
+    private var interstitialResponseId: String? = null
+    private var rewardedResponseId: String? = null
+
+    // Requests that arrived before the SDK was ready are replayed once it is.
+    private var pendingBannerActivity: Activity? = null
+    private var pendingBannerContainer: ViewGroup? = null
 
     /**
      * Initializes the Tapsell SDK. Safe to call multiple times; only the first call has an
-     * effect. [onReady] is invoked once initialization succeeded.
+     * effect.
      */
-    fun initialize(onReady: () -> Unit = {}) {
-        if (initialized) {
-            onReady()
-            return
-        }
-        val appKey = BuildConfig.TAPSELL_APP_KEY
-        if (appKey.isBlank()) {
+    fun initialize() {
+        if (initialized) return
+        if (!enabled) {
             Log.i(TAG, "No Tapsell app key configured, ads are disabled")
+            initialized = true
             return
         }
         TapsellPlus.initialize(
@@ -70,7 +75,7 @@ class AdsManager(private val context: Context) {
             object : TapsellPlusInitListener {
                 override fun onInitializeSuccess(adNetworks: AdNetworks) {
                     initialized = true
-                    onReady()
+                    flushPendingBanner()
                 }
 
                 override fun onInitializeFailed(
@@ -85,7 +90,27 @@ class AdsManager(private val context: Context) {
 
     /** Requests a banner ad and renders it into [container] as soon as it arrives. */
     fun showBanner(activity: Activity, container: ViewGroup) {
-        if (!initialized || bannerZone.isBlank()) return
+        if (!enabled || bannerZone.isBlank()) return
+        if (!initialized) {
+            // Remember the request; it is replayed as soon as the SDK becomes available.
+            pendingBannerActivity = activity
+            pendingBannerContainer = container
+            return
+        }
+        requestBanner(activity, container)
+    }
+
+    private fun flushPendingBanner() {
+        val activity = pendingBannerActivity
+        val container = pendingBannerContainer
+        pendingBannerActivity = null
+        pendingBannerContainer = null
+        if (activity != null && container != null && !activity.isDestroyed) {
+            requestBanner(activity, container)
+        }
+    }
+
+    private fun requestBanner(activity: Activity, container: ViewGroup) {
         TapsellPlus.requestStandardBannerAd(
             activity,
             bannerZone,
@@ -143,7 +168,11 @@ class AdsManager(private val context: Context) {
      * displayed as soon as it becomes available.
      */
     fun showInterstitial(activity: Activity) {
-        if (!initialized || interstitialZone.isBlank()) return
+        if (!enabled || interstitialZone.isBlank()) return
+        if (!initialized) {
+            initialize()
+            if (!initialized) return
+        }
         val cached = interstitialResponseId
         if (cached != null) {
             interstitialResponseId = null
@@ -199,9 +228,16 @@ class AdsManager(private val context: Context) {
      * Shows a rewarded video ad. [onReward] is invoked when the user earned the reward.
      */
     fun showRewarded(activity: Activity, onReward: () -> Unit) {
-        if (!initialized || rewardedZone.isBlank()) {
+        if (!enabled || rewardedZone.isBlank()) {
             onReward()
             return
+        }
+        if (!initialized) {
+            initialize()
+            if (!initialized) {
+                onReward()
+                return
+            }
         }
         TapsellPlus.requestRewardedVideoAd(
             activity,

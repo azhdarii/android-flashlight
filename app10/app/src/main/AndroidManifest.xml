@@ -2,9 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The torch is controlled through camera2; INTERNET is required by the ad SDK. -->
+    <!-- INTERNET is required by the ad SDK. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+        The foreground service keeps the torch alive while the app is in the background.
+        The torch itself is driven through camera2, which needs no permission: neither
+        CameraManager#setTorchMode nor the native camera service perform a permission or
+        app-op check for the torch.
+
+        The `specialUse` type is used on purpose. The `camera` type would force the CAMERA
+        runtime permission to be granted on Android 14+, which would be an alarming and
+        pointless prompt for an app that never opens the camera.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
         A flash unit is optional: the app is still usable (as a colour lamp) on devices
@@ -41,6 +55,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Keeps the torch running while the app is backgrounded. -->
+        <service
+            android:name=".core.service.TorchService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the device torch switched on while the app is in the background." />
+        </service>
     </application>
 
 </manifest>

@@ -6,7 +6,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.azhdar.app10.core.ads.AdsManager
 import com.azhdar.app10.ui.FlashlightViewModel
+import com.azhdar.app10.ui.components.findActivity
 import com.azhdar.app10.ui.screens.ColorChooserScreen
 import com.azhdar.app10.ui.screens.ColorPickerScreen
 import com.azhdar.app10.ui.screens.HomeScreen
@@ -34,6 +37,9 @@ fun AppNavHost(
     navController: NavHostController = rememberNavController(),
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+
     NavHost(
         navController = navController,
         startDestination = Routes.Home.route,
@@ -55,8 +61,14 @@ fun AppNavHost(
             HomeScreen(
                 viewModel = viewModel,
                 adsManager = adsManager,
-                onOpenColorChooser = { navController.navigate(Routes.ColorChooser.route) },
-                onOpenColorPicker = { navController.navigate(Routes.ColorPicker.route) },
+                onOpenColorChooser = {
+                    activity?.let { adsManager.showInterstitial(it) }
+                    navController.navigate(Routes.ColorChooser.route)
+                },
+                onOpenColorPicker = {
+                    activity?.let { adsManager.showInterstitial(it) }
+                    navController.navigate(Routes.ColorPicker.route)
+                },
             )
         }
 

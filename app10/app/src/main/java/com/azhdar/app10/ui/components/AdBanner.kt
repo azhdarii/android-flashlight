@@ -69,7 +69,8 @@ fun AdBanner(
 }
 
 /** Finds the hosting Activity from a Context, unwrapping theme/app context wrappers. */
-internal fun Context.findActivity(): Activity? {
+/** Finds the hosting Activity from a Context, unwrapping theme/app context wrappers. */
+fun Context.findActivity(): Activity? {
     var current = this
     while (current is ContextWrapper) {
         if (current is Activity) return current

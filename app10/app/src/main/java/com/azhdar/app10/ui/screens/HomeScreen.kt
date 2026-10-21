@@ -70,9 +70,10 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val torchState by viewModel.torchState.collectAsStateWithLifecycle()
-    val strobeActive by viewModel.strobeActive.collectAsStateWithLifecycle()
+    val strobeState by viewModel.strobeState.collectAsStateWithLifecycle()
+    val strobeActive = strobeState.isActive
     val hasFlash by remember { mutableStateOf(viewModel.hasFlash) }
-    val strobeInterval by viewModel.strobeIntervalMs.collectAsStateWithLifecycle()
+    val strobeInterval = strobeState.intervalMs
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
