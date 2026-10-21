@@ -47,7 +47,6 @@ class FlashlightViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     init {
-        torchController.attach()
         viewModelScope.launch {
             settingsRepository.strobeIntervalMs.collect { interval ->
                 if (!strobeState.value.isActive) {
@@ -99,8 +98,8 @@ class FlashlightViewModel(
     override fun onCleared() {
         super.onCleared()
         // The torch and the strobe are owned by the application scoped controller, so they
-        // intentionally keep running while the app is in the background. They are released
-        // when the service is stopped or the process dies.
-        torchController.detach()
+        // intentionally keep running while the app is in the background. The torch callback
+        // is registered by the application, not by this ViewModel, so it stays active for
+        // as long as the light is on.
     }
 }

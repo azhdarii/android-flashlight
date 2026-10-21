@@ -50,7 +50,9 @@ fun AdBanner(
                 }
             },
             modifier = Modifier.fillMaxWidth().height(height),
-            update = { view -> container = view },
+            // The container is remembered, not written on every recomposition, so the
+            // banner is only requested once.
+            update = { view -> if (container !== view) container = view },
         )
     }
 
@@ -68,7 +70,6 @@ fun AdBanner(
     }
 }
 
-/** Finds the hosting Activity from a Context, unwrapping theme/app context wrappers. */
 /** Finds the hosting Activity from a Context, unwrapping theme/app context wrappers. */
 fun Context.findActivity(): Activity? {
     var current = this

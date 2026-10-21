@@ -20,6 +20,10 @@ class App10Application : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // The torch callback is registered for the whole lifetime of the process, so the
+        // published state stays correct even while the app is in the background and the
+        // platform changes the torch behind our back.
+        container.torchController.attach()
     }
 }
 
