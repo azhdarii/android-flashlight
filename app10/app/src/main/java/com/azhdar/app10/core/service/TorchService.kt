@@ -35,13 +35,15 @@ import kotlinx.coroutines.launch
  * Design notes:
  *  - The service does not own the torch. [TorchController] stays the single source of truth
  *    and lives in the application scope, so the service and the UI never disagree about the
- *    state.
+ *    state. Consequently the service never switches the torch off on its own: doing so
+ *    would race with a strobe that is still running.
  *  - The `specialUse` foreground service type is used on purpose. The `camera` type would
  *    require the `CAMERA` runtime permission to be granted on Android 14+, but the torch API
  *    itself needs no permission at all, so demanding it would be a needless and alarming
  *    permission prompt.
- *  - The service is not sticky: if the process is killed the torch is off anyway, so
- *    resurrecting the service would only show a misleading notification.
+ *  - The service is sticky so that Android restarts it if it is reclaimed, restoring the
+ *    notification. On a restart the current torch state is inspected first, so no misleading
+ *    notification is shown when there is nothing to keep alive.
  */
 class TorchService : Service() {
 
@@ -59,12 +61,17 @@ class TorchService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_TURN_OFF -> {
-                controller.safeSetTorchOff()
-                stopSelf()
-                return START_NOT_STICKY
-            }
+        if (intent?.action == ACTION_TURN_OFF) {
+            controller.safeSetTorchOff()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // There is nothing to keep alive when the light is already off. This happens on a
+        // sticky restart after the process was killed.
+        if (!controller.torchState.value.isOn && !controller.strobeState.value.isActive) {
+            stopSelf()
+            return START_NOT_STICKY
         }
 
         startForegroundCompat()
@@ -77,20 +84,20 @@ class TorchService : Service() {
             }
         }
 
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
         observeJob?.cancel()
-        // The torch must never outlive the service, otherwise it would stay on with no way
-        // for the user to switch it off.
-        controller.safeSetTorchOff()
+        // The torch is owned by the controller and is switched off explicitly by the user
+        // action or by the strobe finishing. It must not be touched here, because this
+        // callback also runs while the service is being replaced during a restart.
         controller.onServiceStopped()
         super.onDestroy()
     }
 
     private fun startForegroundCompat() {
-        val notification = buildNotification()
+        val notification = buildNotification(controller.torchState.value.isOn)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceCompat.startForeground(
                 this,
@@ -105,7 +112,7 @@ class TorchService : Service() {
         }
     }
 
-    private fun buildNotification(isOn: Boolean = true): Notification {
+    private fun buildNotification(isOn: Boolean): Notification {
         val contentIntent = PendingIntent.getActivity(
             this,
             REQUEST_CONTENT,
@@ -181,7 +188,7 @@ class TorchService : Service() {
             }
         }
 
-        /** Stops the service and switches the torch off. */
+        /** Stops the service. The torch itself is switched off by the caller. */
         fun stop(context: Context) {
             runCatching { context.stopService(Intent(context, TorchService::class.java)) }
         }

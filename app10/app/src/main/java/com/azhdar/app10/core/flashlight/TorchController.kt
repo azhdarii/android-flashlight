@@ -9,14 +9,10 @@ import android.util.Log
 import com.azhdar.app10.core.service.TorchService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -32,10 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  *  - the platform is allowed to change the torch behind our back (another app turning it off,
  *    the camera being taken over by a video call), so a [CameraManager.TorchCallback] keeps the
  *    published state in sync;
- *  - the strobe loop is bound to an application scope, so it keeps running while the app is in
- *    the background, and it is cancelled deterministically instead of leaking a coroutine.
+ *  - the checked [CameraAccessException] is translated into a result the UI can react to.
  */
-class TorchController(context: Context) {
+class TorchController(context: Context) : TorchDriver {
 
     private val appContext: Context = context.applicationContext
 
@@ -48,18 +43,18 @@ class TorchController(context: Context) {
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    private val strobe = StrobeController(this, scope)
+
     private val _torchState = MutableStateFlow(TorchState())
     val torchState: StateFlow<TorchState> = _torchState.asStateFlow()
 
-    private val _strobeState = MutableStateFlow(StrobeState())
-    val strobeState: StateFlow<StrobeState> = _strobeState.asStateFlow()
+    val strobeState: StateFlow<StrobeState> = strobe.state
 
     /** True when the device exposes at least one camera with a flash unit. */
     val hasFlash: Boolean by lazy { findFlashCameraId() != null }
 
     private var flashCameraId: String? = null
     private var torchCallback: CameraManager.TorchCallback? = null
-    private var strobeJob: Job? = null
 
     /** Tracks whether the foreground service is currently running. */
     private val serviceRunning = AtomicBoolean(false)
@@ -74,7 +69,7 @@ class TorchController(context: Context) {
             if (cameraId != flashCameraId) return
             // Another app grabbed the camera; the torch is gone and the strobe has to stop.
             _torchState.value = _torchState.value.copy(isOn = false, available = false)
-            stopStrobe()
+            strobe.stop()
         }
     }
 
@@ -126,7 +121,7 @@ class TorchController(context: Context) {
      * @return [Result.success] when the platform accepted the request, [Result.failure]
      *   otherwise. The published state is only updated on success.
      */
-    fun setTorch(enabled: Boolean): Result<Unit> {
+    override fun setTorch(enabled: Boolean): Result<Unit> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return Result.failure(UnsupportedOperationException("Torch requires API 23+"))
         }
@@ -149,6 +144,10 @@ class TorchController(context: Context) {
         }
     }
 
+    /** The current state of the torch. */
+    override val isTorchOn: Boolean
+        get() = _torchState.value.isOn
+
     /**
      * Keeps the foreground service in sync with the torch.
      *
@@ -165,17 +164,9 @@ class TorchController(context: Context) {
             if (serviceRunning.compareAndSet(false, true)) {
                 TorchService.start(appContext)
             }
-        } else if (!_strobeState.value.isActive && serviceRunning.compareAndSet(true, false)) {
+        } else if (!strobe.isActive && serviceRunning.compareAndSet(true, false)) {
             TorchService.stop(appContext)
         }
-    }
-
-    /**
-     * Called by [TorchService] when it is destroyed, so the next activation can start it
-     * again.
-     */
-    fun onServiceStopped() {
-        serviceRunning.set(false)
     }
 
     /** Turns the torch off, ignoring failures. Used for cleanup paths. */
@@ -186,47 +177,29 @@ class TorchController(context: Context) {
     /** Starts the strobe (flasher) effect with the given period. */
     fun startStrobe(intervalMs: Int) {
         if (!hasFlash) return
-        stopStrobe()
-        strobeJob = scope.launch {
-            _strobeState.value = _strobeState.value.copy(isActive = true, intervalMs = intervalMs)
-            try {
-                val half = (intervalMs / 2).coerceAtLeast(MIN_HALF_INTERVAL_MS).toLong()
-                while (isActive) {
-                    setTorch(true)
-                    delay(half)
-                    setTorch(false)
-                    delay(half)
-                }
-            } finally {
-                _strobeState.value = _strobeState.value.copy(isActive = false)
-                safeSetTorchOff()
-            }
-        }
+        strobe.start(intervalMs)
     }
 
     /** Stops the strobe effect and switches the torch off. */
     fun stopStrobe() {
-        strobeJob?.cancel()
-        strobeJob = null
-        _strobeState.value = _strobeState.value.copy(isActive = false)
-        safeSetTorchOff()
+        strobe.stop()
     }
 
     /** Updates the period used by the strobe. Takes effect on the next activation. */
     fun updateStrobeInterval(intervalMs: Int) {
-        _strobeState.value = _strobeState.value.copy(intervalMs = intervalMs)
+        strobe.updateInterval(intervalMs)
     }
 
-    /** Releases every resource held by the controller. */
-    fun release() {
-        stopStrobe()
-        safeSetTorchOff()
-        detach()
+    /**
+     * Called by [TorchService] when it is destroyed, so the next activation can start it
+     * again.
+     */
+    fun onServiceStopped() {
+        serviceRunning.set(false)
     }
 
     companion object {
         private const val TAG = "TorchController"
-        private const val MIN_HALF_INTERVAL_MS = 80
     }
 }
 
