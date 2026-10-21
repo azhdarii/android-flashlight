@@ -1,5 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.App10" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        The launch theme. On Android 12+ the platform draws the splash screen from these
+        attributes; on older versions the SplashScreen compat library emulates it.
+    -->
+    <style name="Theme.App10.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.App10</item>
+    </style>
+
+    <style name="Theme.App10" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>

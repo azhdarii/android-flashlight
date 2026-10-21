@@ -2,7 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The torch is controlled through camera2; INTERNET is required by the ad SDK. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+        A flash unit is optional: the app is still usable (as a colour lamp) on devices
+        without one, so the Play Store must not filter them out.
+    -->
+    <uses-feature
+        android:name="android.hardware.camera.flash"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <application
+        android:name=".App10Application"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -12,19 +28,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.App10"
         tools:targetApi="31">
-        <activity
-            android:name=".colorPicker"
-            android:exported="false" />
-        <activity
-            android:name=".red"
-            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.App10">
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:theme="@style/Theme.App10.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
